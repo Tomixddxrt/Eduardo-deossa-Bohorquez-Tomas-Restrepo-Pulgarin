@@ -1,0 +1,88 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bi_envasado}
+      POSTGRES_USER: ${POSTGRES_USER:-bi_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      GRAFANA_DB_USER: ${GRAFANA_DB_USER:-grafana_reader}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?Set GRAFANA_DB_PASSWORD in .env}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/00-grafana-user.sql:/docker-entrypoint-initdb.d/00-grafana-user.sql:ro
+      - ./sql/sqlMaster.sql:/docker-entrypoint-initdb.d/01-sqlMaster.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  db-init:
+    image: postgres:15-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-bi_envasado}
+      PGUSER: ${POSTGRES_USER:-bi_admin}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-bi_envasado}
+      POSTGRES_USER: ${POSTGRES_USER:-bi_admin}
+      GRAFANA_DB_USER: ${GRAFANA_DB_USER:-grafana_reader}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?Set GRAFANA_DB_PASSWORD in .env}
+    volumes:
+      - ./docker/postgres/00-grafana-user.sql:/bootstrap/00-grafana-user.sql:ro
+      - ./sql/sqlMaster.sql:/bootstrap/sqlMaster.sql:ro
+    command:
+      - sh
+      - -c
+      - >-
+        psql -v ON_ERROR_STOP=1 -f /bootstrap/00-grafana-user.sql &&
+        psql -v ON_ERROR_STOP=1 -f /bootstrap/sqlMaster.sql
+    restart: "no"
+
+  grafana:
+    image: grafana/grafana:11.6.1
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GRAFANA_DB_USER: ${GRAFANA_DB_USER:-grafana_reader}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?Set GRAFANA_DB_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-bi_envasado}
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/provisioned-dashboard.json:/var/lib/grafana/dashboards/envasado.json:ro
+    restart: unless-stopped
+
+  etl:
+    build:
+      context: .
+      dockerfile: etl/Dockerfile
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bi_envasado}
+      POSTGRES_USER: ${POSTGRES_USER:-bi_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      EXCEL_FILE: /data/SEGUIMIENTO TEMPERAS Y VINILOS Actividad.xlsm
+    volumes:
+      - "./SEGUIMIENTO TEMPERAS Y VINILOS Actividad.xlsm:/data/SEGUIMIENTO TEMPERAS Y VINILOS Actividad.xlsm:ro"
+    restart: "no"
+
+volumes:
+  postgres_data:
+  grafana_data:

@@ -1,0 +1,181 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: Grupo_1m
+    folder: 5Minutos_Alertas_Planta
+    interval: 1m
+    rules:
+      - uid: cg3hynlovy2gwd
+        title: Alerta_Baja_Disponibilidad_Linea (5 minutes)
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: bi-envasado
+            model:
+              dataset: bi_envasado
+              editorMode: code
+              format: table
+              intervalMs: 1000
+              maxDataPoints: 43200
+              rawQuery: true
+              rawSql: "SELECT ROUND((SUM(f.horas_trabajadas) / NULLIF(SUM(f.horas_trabajadas + f.horas_sin_trabajar), 0)) * 100, 1) AS value FROM fact_paros_produccion f WHERE f.fecha_hora >= NOW() - INTERVAL '5 minutes';"
+              refId: A
+              sql:
+                columns:
+                  - parameters: []
+                    type: function
+                groupBy:
+                  - property:
+                      type: string
+                    type: groupBy
+                limit: 50
+          - refId: B
+            queryType: expression
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: []
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            queryType: expression
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 65
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: NoData
+        execErrState: Error
+        for: 1m
+        annotations:
+          description: El indicador de disponibilidad global ha caído por debajo del umbral del 65%.
+        isPaused: false
+  - orgId: 1
+    name: Grupo_1m
+    folder: Alertas_Planta
+    interval: 1m
+    rules:
+      - uid: bg3hvlcv1uha8b
+        title: Alerta_Baja_Disponibilidad_Linea
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: bi-envasado
+            model:
+              dataset: bi_envasado
+              editorMode: code
+              format: table
+              intervalMs: 1000
+              maxDataPoints: 43200
+              rawQuery: true
+              rawSql: "SELECT ROUND((SUM(f.horas_trabajadas) / NULLIF(SUM(f.horas_trabajadas + f.horas_sin_trabajar), 0)) * 100, 1) AS value FROM fact_paros_produccion f;"
+              refId: A
+              sql:
+                columns:
+                  - parameters: []
+                    type: function
+                groupBy:
+                  - property:
+                      type: string
+                    type: groupBy
+                limit: 50
+          - refId: B
+            queryType: expression
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: []
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            queryType: expression
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 65
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: NoData
+        execErrState: Error
+        for: 1m
+        annotations:
+          description: El indicador de disponibilidad global ha caído por debajo del umbral del 65%.
+          summary: Disponibilidad crítica detectada en envasado
+        isPaused: false

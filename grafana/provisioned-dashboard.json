@@ -1,0 +1,92 @@
+{
+  "id": null,
+  "uid": "bi-envasado-dashboard",
+  "title": "Disponibilidad actual por máquina",
+  "tags": ["envasado"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Disponibilidad por máquina",
+      "type": "barchart",
+      "datasource": {
+        "type": "postgres",
+        "uid": "bi-envasado"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT m.nombre_maquina AS metric, ROUND((SUM(f.horas_trabajadas) / NULLIF(SUM(f.horas_trabajadas + f.horas_sin_trabajar), 0)) * 100, 1) AS value FROM fact_paros_produccion f JOIN dim_maquina m ON f.id_maquina = m.id_maquina GROUP BY m.nombre_maquina;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "auto",
+        "showValue": "auto",
+        "legend": {
+          "showLegend": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Serie temporal de horas de paro",
+      "type": "timeseries",
+      "datasource": {
+        "type": "postgres",
+        "uid": "bi-envasado"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT f.id_fecha AS time, m.nombre_maquina AS metric, SUM(f.horas_sin_trabajar) AS value FROM fact_paros_produccion f JOIN dim_maquina m ON f.id_maquina = m.id_maquina GROUP BY f.id_fecha, m.nombre_maquina ORDER BY f.id_fecha ASC;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ]
+}
